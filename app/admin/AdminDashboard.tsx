@@ -15,10 +15,12 @@ import {
   Inbox,
   ArrowLeft,
   Pencil,
-  Code,
-  Copy,
   Check,
   LogOut,
+  ExternalLink,
+  ChevronRight,
+  TrendingUp,
+  Code,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -103,106 +105,135 @@ export default function AdminDashboard() {
 
   return (
     <Shell>
-      {/* Header */}
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Mis Encuestas</h1>
-          <p className="text-sm text-slate-500">
-            {surveys.length}{' '}
-            {surveys.length === 1 ? 'encuesta creada' : 'encuestas creadas'}
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">Mis Encuestas</h1>
+          <p className="mt-1 text-sm font-medium text-slate-500">
+            Gestiona {surveys.length}{' '}
+            {surveys.length === 1 ? 'encuesta activa' : 'encuestas activas'}
           </p>
         </div>
         <Link
           href="/survey-builder"
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition-all hover:shadow-xl hover:brightness-110"
+          className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-200/50 transition-all active:scale-95 hover:shadow-xl hover:brightness-110"
         >
-          <Plus size={18} />
+          <Plus size={18} className="transition-transform group-hover:rotate-90" />
           Crear Nueva Encuesta
         </Link>
       </div>
 
       {/* Empty */}
       {surveys.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-white py-20 text-center">
-          <Inbox size={48} className="mb-4 text-slate-300" />
-          <p className="text-lg font-semibold text-slate-500">Aún no tienes encuestas</p>
-          <p className="mt-1 text-sm text-slate-400">Crea tu primera encuesta para comenzar.</p>
+        <div className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-white/50 backdrop-blur-xl py-24 text-center ring-1 ring-slate-100 shadow-sm transition-all">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100/80 shadow-inner">
+            <Inbox size={32} className="text-slate-400" />
+          </div>
+          <p className="text-xl font-bold text-slate-700">Aún no tienes encuestas</p>
+          <p className="mt-2 text-sm max-w-sm text-slate-500">Diseña tu primera encuesta con IA o desde cero y empieza a recolectar datos valiosos hoy.</p>
+          <Link
+            href="/survey-builder"
+            className="mt-8 flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+          >
+            Empezar ahora <ChevronRight size={16} />
+          </Link>
         </div>
       )}
 
-      {/* Survey Cards */}
-      <div className="space-y-4">
+      {/* Survey Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {surveys.map((s) => (
           <div
             key={s.id}
-            className="group flex flex-col gap-4 rounded-2xl bg-white p-5 shadow-sm transition-shadow hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
+            className="group relative flex flex-col rounded-3xl overflow-hidden bg-white shadow-sm ring-1 ring-slate-200/50 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-100/50 hover:ring-indigo-100"
           >
-            {/* Color dot + Info */}
-            <div className="flex min-w-0 flex-1 items-start gap-3">
-              <div
-                className="mt-1 h-3 w-3 flex-shrink-0 rounded-full"
-                style={{ backgroundColor: s.primary_color }}
-              />
-              <div className="min-w-0">
-                <h2 className="truncate text-base font-semibold text-slate-800">{s.title}</h2>
-                {s.description && (
-                  <p className="mt-0.5 truncate text-sm text-slate-500">{s.description}</p>
-                )}
-                <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-slate-400">
-                  <span className="flex items-center gap-1">
-                    <Calendar size={12} />
-                    {new Date(s.created_at).toLocaleDateString('es-CL', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <MessageSquareText size={12} />
-                    {s.response_count} {s.response_count === 1 ? 'respuesta' : 'respuestas'}
-                  </span>
+            {/* Top Color Banner */}
+            <div 
+              className="h-2 w-full transition-opacity group-hover:opacity-80" 
+              style={{ backgroundColor: s.primary_color }}
+            />
+            
+            <div className="p-6 flex flex-col flex-grow">
+              {/* Header */}
+              <div className="flex items-start justify-between min-w-0 gap-4 mb-2">
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate text-lg font-bold text-slate-800" title={s.title}>{s.title}</h2>
+                  <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-500" title={s.description}>
+                    {s.description || 'Sin descripción'}
+                  </p>
                 </div>
+                {s.logo_url && (
+                  <img src={s.logo_url} alt="Logo" className="w-10 h-10 rounded-xl object-contain bg-slate-50 ring-1 ring-slate-100 shrink-0" />
+                )}
+              </div>
+
+              {/* Badges / Stats */}
+              <div className="mt-auto pt-6 flex flex-wrap items-center gap-2 text-xs font-semibold">
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-indigo-700">
+                  <TrendingUp size={14} className="text-indigo-500" />
+                  {s.response_count} {s.response_count === 1 ? 'respuesta' : 'respuestas'}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-slate-600">
+                  <Calendar size={14} className="text-slate-400" />
+                  {new Date(s.created_at).toLocaleDateString('es-CL', { month: 'short', day: 'numeric' })}
+                </span>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex flex-shrink-0 items-center gap-2">
+            {/* Actions Footer (Scrollable horizontally on very small screens, wrapped normally) */}
+            <div className="mt-2 border-t border-slate-100 bg-slate-50/50 p-3 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
               <Link
-                href={`/survey-builder?id=${s.id}`}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
+                href={`/survey?survey_id=${s.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="col-span-1 flex items-center justify-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 shadow-sm ring-1 ring-slate-200/60 transition-all hover:bg-blue-50 hover:text-blue-600 hover:ring-blue-200"
               >
-                <Pencil size={14} />
-                Editar
+                <ExternalLink size={14} />
+                <span className="hidden sm:inline">Ver</span>
               </Link>
-              <button
-                type="button"
-                onClick={() => handleOpenJson(s.id)}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800"
-              >
-                <Code size={14} />
-                JSON
-              </button>
+
               <Link
                 href={`/dashboard?survey_id=${s.id}`}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-indigo-50 hover:text-indigo-600"
+                className="col-span-1 flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-[11px] sm:text-xs font-bold text-white shadow-sm ring-1 ring-indigo-600 transition-all hover:bg-indigo-700"
               >
                 <BarChart3 size={14} />
-                Analítica
+                <span className="hidden sm:inline">Analítica</span>
               </Link>
+
               <button
                 type="button"
                 onClick={() => setShareModal(s)}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-violet-50 hover:text-violet-600"
+                className="col-span-1 flex items-center justify-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 shadow-sm ring-1 ring-slate-200/60 transition-all hover:bg-violet-50 hover:text-violet-600 hover:ring-violet-200"
               >
                 <Share2 size={14} />
-                Compartir
+                <span className="hidden sm:inline">Compartir</span>
               </button>
+
+              <div className="col-span-3 sm:col-span-1 border-t sm:border-t-0 sm:border-l border-slate-200 my-1 mx-1"></div>
+
+              <Link
+                href={`/survey-builder?id=${s.id}`}
+                className="col-span-1 flex items-center justify-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 shadow-sm ring-1 ring-slate-200/60 transition-all hover:bg-emerald-50 hover:text-emerald-600 hover:ring-emerald-200"
+              >
+                <Pencil size={14} />
+                <span className="hidden sm:inline">Editar</span>
+              </Link>
+              
+              <button
+                type="button"
+                onClick={() => handleOpenJson(s.id)}
+                className="col-span-1 flex items-center justify-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 shadow-sm ring-1 ring-slate-200/60 transition-all hover:bg-slate-100 hover:text-slate-800"
+              >
+                <Code size={14} />
+                <span className="hidden sm:inline">JSON</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setDeleteConfirm(s.id)}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-red-50 hover:text-red-600"
+                className="col-span-1 flex items-center justify-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] sm:text-xs font-bold text-red-500 shadow-sm ring-1 ring-red-100 transition-all hover:bg-red-50 hover:text-red-600 hover:ring-red-200"
               >
                 <Trash2 size={14} />
+                <span className="hidden sm:inline">Borrar</span>
               </button>
             </div>
           </div>
@@ -319,9 +350,13 @@ export default function AdminDashboard() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
+    <div className="min-h-screen bg-slate-50 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.1),rgba(255,255,255,0))]">
+      {/* Esfera de luz de fondo para dar estilo Premium */}
+      <div className="absolute top-0 -left-40 -z-10 h-[500px] w-[500px] rounded-full bg-indigo-500/10 mix-blend-multiply blur-[120px] pointer-events-none" />
+      <div className="absolute top-40 -right-40 -z-10 h-[400px] w-[400px] rounded-full bg-violet-400/10 mix-blend-multiply blur-[120px] pointer-events-none" />
+
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-4">
             <Link
               href="/"
@@ -352,7 +387,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">{children}</main>
+      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 space-y-8">{children}</main>
     </div>
   );
 }
