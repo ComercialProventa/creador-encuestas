@@ -1,19 +1,28 @@
-import { type NextRequest } from 'next/server';
-import { updateSession } from './lib/supabase/middleware';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-export async function proxy(request: NextRequest) {
-  return await updateSession(request);
+// 👇 Agregamos "default" para que Next.js lo reconozca sin chistar
+export default function proxy(req: NextRequest) {
+  const path = req.nextUrl.pathname;
+
+  if (!path.startsWith('/admin') && !path.startsWith('/survey-builder')) {
+    return NextResponse.next();
+  }
+
+  const authCookie = req.cookies.getAll().find(cookie => cookie.name.includes('-auth-token'));
+
+  if (!authCookie) {
+    const redirectUrl = req.nextUrl.clone();
+    redirectUrl.pathname = '/';
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
+    '/admin/:path*',
+    '/survey-builder/:path*'
   ],
 };
