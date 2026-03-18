@@ -21,6 +21,7 @@ import {
   ChevronRight,
   TrendingUp,
   Code,
+  Copy,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
