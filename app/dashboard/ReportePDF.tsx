@@ -66,7 +66,7 @@ function KpiBox({ label, value, sub, color }: { label: string; value: string; su
     }}>
       <div style={{ fontSize: 10, fontWeight: 800, color: '#94a3b8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1.5 }}>{label}</div>
       <div style={{ fontSize: 36, fontWeight: 900, color, lineHeight: 1, letterSpacing: -1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, fontWeight: 600, color: '#cbd5e1', mt: 4 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 11, fontWeight: 600, color: '#cbd5e1', marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
@@ -251,7 +251,7 @@ export function ReportePDFTemplate({ data, id }: { data: SurveyAnalytics; id: st
                   </div>
 
                   <div style={{ fontSize: 8.5, color: '#94a3b8', fontStyle: 'italic', marginTop: 2 }}>
-                    * Nota metodológica: Aunque el estándar internacional utiliza una escala del 0 al 10, la plataforma ajusta rigurosamente el cálculo estadístico a una <strong>{`escala local ${survey.scale_max ? `de 1 a ${survey.scale_max}` : 'adaptada'}`}</strong> para ajustarse a las normativas de evaluación del país, garantizando la misma validez internacional del resultado final.
+                    * Nota metodológica: Aunque el estándar internacional utiliza una escala del 0 al 10, la plataforma ajusta rigurosamente el cálculo estadístico a una <strong>{`escala local ${(survey as any).scale_max ? `de 1 a ${(survey as any).scale_max}` : 'adaptada'}`}</strong> para ajustarse a las normativas de evaluación del país, garantizando la misma validez internacional del resultado final.
                   </div>
                 </div>
               </div>
@@ -441,102 +441,108 @@ export default function ReportePDFButton({ data }: ReportePDFButtonProps) {
   const [generating, setGenerating] = useState(false);
   const templateId = 'reporte-pdf-hidden';
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = () => {
     setGenerating(true);
-    try {
-      // Dynamic imports to avoid SSR issues
-      const html2canvas = (await import('html2canvas')).default;
-      const { jsPDF } = await import('jspdf');
 
-      const wrapper = document.getElementById(templateId);
-      if (!wrapper) throw new Error('PDF template not found');
+    // Utilizamos setTimeout para ceder el hilo principal (Event Loop) y permitir
+    // que el botón de React se renderice en estado "Cargando..." antes de bloquear el CPU.
+    setTimeout(async () => {
+      try {
+        // Dynamic imports to avoid SSR issues
+        const html2canvas = (await import('html2canvas')).default;
+        const { jsPDF } = await import('jspdf');
 
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      });
+        const wrapper = document.getElementById(templateId);
+        if (!wrapper) throw new Error('PDF template not found');
 
-      const pageWidth = pdf.internal.pageSize.getWidth();    // 210mm
-      const pageHeight = pdf.internal.pageSize.getHeight();  // 297mm
-
-      // Find all the discrete blocks we created
-      const blocks = wrapper.querySelectorAll('.pdf-page-block');
-      
-      let currentYMm = 0;
-      let isFirstPage = true;
-
-      for (let i = 0; i < blocks.length; i++) {
-        const block = blocks[i] as HTMLElement;
-        
-        // Render this specific block with 3x scale for ultra-crisp Retina-level resolution
-        const canvas = await html2canvas(block, {
-          scale: 3, 
-          useCORS: true,
-          backgroundColor: '#f8fafc',
-          logging: false,
-          windowWidth: 794,
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4',
         });
 
-        // Calculate how much vertical space this block takes in the PDF
-        const blockWidthMm = pageWidth;
-        const blockHeightMm = (canvas.height * pageWidth) / canvas.width;
+        const pageWidth = pdf.internal.pageSize.getWidth();    // 210mm
+        const pageHeight = pdf.internal.pageSize.getHeight();  // 297mm
 
-        // If block doesn't fit on the current page (and it's not the very top of a new page already)
-        if (currentYMm + blockHeightMm > pageHeight && currentYMm > 0) {
-          pdf.addPage();
-          currentYMm = 0;
-          isFirstPage = false;
-        }
+        // Find all the discrete blocks we created
+        const blocks = wrapper.querySelectorAll('.pdf-page-block');
+        
+        let currentYMm = 0;
+        let isFirstPage = true;
 
-        // What if a single block is larger than a whole page?
-        if (blockHeightMm > pageHeight) {
-          // We have to slice the block itself into multiple pages
-          let sliceY = 0;
-          while (sliceY < blockHeightMm) {
-            const h = Math.min(pageHeight - currentYMm, blockHeightMm - sliceY);
-            const hPx = (h * canvas.width) / pageWidth;
-            const startPx = (sliceY * canvas.width) / pageWidth;
+        for (let i = 0; i < blocks.length; i++) {
+          const block = blocks[i] as HTMLElement;
+          
+          // Render this specific block with 3x scale for ultra-crisp Retina-level resolution
+          const canvas = await html2canvas(block, {
+            scale: 3, 
+            useCORS: true,
+            backgroundColor: '#f8fafc',
+            logging: false,
+            windowWidth: 794,
+          });
 
-            const sliceCanvas = document.createElement('canvas');
-            sliceCanvas.width = canvas.width;
-            sliceCanvas.height = hPx;
-            const ctx = sliceCanvas.getContext('2d');
-            ctx?.drawImage(canvas, 0, startPx, canvas.width, hPx, 0, 0, canvas.width, hPx);
+          // Calculate how much vertical space this block takes in the PDF
+          const blockWidthMm = pageWidth;
+          const blockHeightMm = (canvas.height * pageWidth) / canvas.width;
 
-            pdf.addImage(sliceCanvas.toDataURL('image/png', 1.0), 'PNG', 0, currentYMm, blockWidthMm, h);
-            
-            sliceY += h;
-            currentYMm += h;
-            
-            if (sliceY < blockHeightMm) {
-              pdf.addPage();
-              currentYMm = 0;
-              isFirstPage = false;
-            }
+          // If block doesn't fit on the current page (and it's not the very top of a new page already)
+          if (currentYMm + blockHeightMm > pageHeight && currentYMm > 0) {
+            pdf.addPage();
+            currentYMm = 0;
+            isFirstPage = false;
           }
-        } else {
-          // Normal fit 
-          // toDataURL with 1.0 quality parameter inside PDF addition to preserve pixel-perfect rendering
-          pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, currentYMm, blockWidthMm, blockHeightMm);
-          currentYMm += blockHeightMm;
+
+          // What if a single block is larger than a whole page?
+          if (blockHeightMm > pageHeight) {
+            // We have to slice the block itself into multiple pages
+            let sliceY = 0;
+            while (sliceY < blockHeightMm) {
+              const h = Math.min(pageHeight - currentYMm, blockHeightMm - sliceY);
+              const hPx = (h * canvas.width) / pageWidth;
+              const startPx = (sliceY * canvas.width) / pageWidth;
+
+              const sliceCanvas = document.createElement('canvas');
+              sliceCanvas.width = canvas.width;
+              sliceCanvas.height = hPx;
+              const ctx = sliceCanvas.getContext('2d');
+              ctx?.drawImage(canvas, 0, startPx, canvas.width, hPx, 0, 0, canvas.width, hPx);
+
+              // Compress as JPEG to drastically drop MB weighting and speed up scrolling
+              pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.85), 'JPEG', 0, currentYMm, blockWidthMm, h);
+              
+              sliceY += h;
+              currentYMm += h;
+              
+              if (sliceY < blockHeightMm) {
+                pdf.addPage();
+                currentYMm = 0;
+                isFirstPage = false;
+              }
+            }
+          } else {
+            // Normal fit
+            // Compress as JPEG (85% quality) to radically reduce file size vs lossless PNG
+            pdf.addImage(canvas.toDataURL('image/jpeg', 0.85), 'JPEG', 0, currentYMm, blockWidthMm, blockHeightMm);
+            currentYMm += blockHeightMm;
+          }
         }
+
+        const filename = data.survey.title
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
+
+        pdf.save(`reporte-${filename}.pdf`);
+      } catch (err) {
+        console.error('Error generando PDF:', err);
+        alert('Error al generar el PDF. Revisa la consola para más detalles.');
+      } finally {
+        setGenerating(false);
       }
-
-      const filename = data.survey.title
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-
-      pdf.save(`reporte-${filename}.pdf`);
-    } catch (err) {
-      console.error('Error generando PDF:', err);
-      alert('Error al generar el PDF. Revisa la consola.');
-    } finally {
-      setGenerating(false);
-    }
+    }, 150);
   };
 
   return (

@@ -14,6 +14,7 @@ import {
   Sparkles,
   ArrowLeft,
   ImageIcon,
+  Building2,
 } from 'lucide-react';
 import { Question, type RewardType } from './types';
 import { saveSurvey, fetchSurveyById } from '@/actions/survey';
@@ -29,6 +30,7 @@ const REWARD_LABELS: Record<RewardType, string> = {
 export default function SurveyBuilder() {
   const [surveyTitle, setSurveyTitle] = useState('');
   const [surveyDescription, setSurveyDescription] = useState('');
+  const [company, setCompany] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [primaryColor, setPrimaryColor] = useState('#6366f1');
   const [logoUrl, setLogoUrl] = useState('');
@@ -62,6 +64,7 @@ export default function SurveyBuilder() {
       if (data) {
         setSurveyTitle(data.title);
         setSurveyDescription(data.description || '');
+        setCompany(data.company || '');
         setPrimaryColor(data.primary_color);
         setLogoUrl(data.logo_url || '');
         setCoverImageUrl(data.cover_image_url || '');
@@ -101,12 +104,13 @@ export default function SurveyBuilder() {
     }));
     console.log("ENVIANDO AL SERVIDOR:", preguntasAEnviar);
 
-    const result = await saveSurvey(
-      {
-        id: surveyIdParam || undefined,
-        title: surveyTitle,
-        description: surveyDescription,
-        primaryColor,
+      const result = await saveSurvey(
+        {
+          id: surveyIdParam || undefined,
+          title: surveyTitle,
+          description: surveyDescription,
+          company: company.trim() || undefined,
+          primaryColor,
         logoUrl: logoUrl || undefined,
         coverImageUrl: coverImageUrl || undefined,
         rewardType,
@@ -317,6 +321,26 @@ export default function SurveyBuilder() {
             onSurveyDescriptionChange={setSurveyDescription}
             onQuestionsChange={setQuestions}
           />
+
+          {/* ── Configuración Comercial ─────────────────── */}
+          <div className="rounded-2xl bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <Building2 size={18} className="text-blue-600" />
+              <h2 className="text-sm font-bold text-slate-800">Configuración Comercial</h2>
+            </div>
+            
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-slate-600">Nombre de la Empresa Comercial / Cliente</label>
+              <input
+                type="text"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                placeholder="Ej: ACME Corp, Coca-Cola, etc..."
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              />
+              <p className="mt-1.5 text-[11px] text-slate-400">Este nombre te ayudará a organizar y encontrar la encuesta más rápido dentro de tu panel de administración.</p>
+            </div>
+          </div>
 
           {/* ── Design Section ───────────────────────────── */}
           <div className="rounded-2xl bg-white p-5 shadow-sm">

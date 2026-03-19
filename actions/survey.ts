@@ -16,6 +16,7 @@ interface SurveyInput {
   id?: string;
   title: string;
   description: string;
+  company?: string;
   primaryColor?: string;
   logoUrl?: string;
   coverImageUrl?: string;
@@ -51,6 +52,7 @@ export async function saveSurvey(
         .update({
           title: surveyData.title,
           description: surveyData.description,
+          company: surveyData.company || null,
           primary_color: surveyData.primaryColor ?? '#6366f1',
           logo_url: surveyData.logoUrl || null,
           cover_image_url: surveyData.coverImageUrl || null,
@@ -87,6 +89,7 @@ export async function saveSurvey(
         .insert({
           title: surveyData.title,
           description: surveyData.description,
+          company: surveyData.company || null,
           primary_color: surveyData.primaryColor ?? '#6366f1',
           logo_url: surveyData.logoUrl || null,
           cover_image_url: surveyData.coverImageUrl || null,
@@ -203,6 +206,7 @@ export interface SurveyListItem {
   id: string;
   title: string;
   description: string;
+  company?: string | null;
   created_at: string;
   response_count: number;
   primary_color: string;
@@ -234,6 +238,7 @@ export async function fetchAllSurveys(): Promise<{
         id: s.id,
         title: s.title,
         description: s.description ?? '',
+        company: s.company ?? null,
         created_at: s.created_at,
         response_count: count ?? 0,
         primary_color: s.primary_color ?? '#6366f1',
@@ -280,6 +285,7 @@ export interface SurveyWithQuestions {
   id: string;
   title: string;
   description: string;
+  company: string | null;
   primary_color: string;
   logo_url: string | null;
   cover_image_url: string | null;
@@ -326,6 +332,7 @@ export async function fetchSurveyById(
         id: survey.id,
         title: survey.title,
         description: survey.description ?? '',
+        company: survey.company ?? null,
         primary_color: survey.primary_color ?? '#6366f1',
         logo_url: survey.logo_url ?? null,
         cover_image_url: survey.cover_image_url ?? null,

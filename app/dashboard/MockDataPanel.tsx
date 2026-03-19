@@ -27,6 +27,13 @@ export default function MockDataPanel({ surveyId, onDataChanged }: MockDataPanel
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const handleGenerate = async () => {
+    const confirmText = prompt(`¡ALERTA MÁXIMA!\n\nVas a inyectar ${count} respuestas simuladas en esta encuesta, lo que alterará las métricas visibles.\n\nPara confirmar esta acción, escribe exactamente la palabra: GENERAR`);
+    
+    if (confirmText !== 'GENERAR') {
+      alert('🔒 Operación cancelada. (No escribiste "GENERAR" correctamente)');
+      return;
+    }
+
     setLoading(true);
     setResult(null);
     try {
@@ -45,13 +52,19 @@ export default function MockDataPanel({ surveyId, onDataChanged }: MockDataPanel
   };
 
   const handleClear = async () => {
-    if (!confirm(`¿Estás seguro que quieres borrar TODAS las respuestas de esta encuesta? Esta acción es irreversible.`)) return;
+    const confirmText = prompt(`¡PELIGRO CRÍTICO DE PÉRDIDA DE DATOS!\n\nEsta acción ELIMINARÁ PARA SIEMPRE TODAS las respuestas (tanto reales como falsas) de esta encuesta. Es absolutamente irreversible.\n\nPara confirmar la destrucción total de los datos, escribe la palabra: ELIMINAR`);
+    
+    if (confirmText !== 'ELIMINAR') {
+      alert('🔒 Operación de borrado masivo abortada por seguridad.');
+      return;
+    }
+
     setClearing(true);
     setResult(null);
     try {
       const res = await clearMockResponses(surveyId);
       if (res.success) {
-        setResult({ ok: true, message: `🗑️ Se borraron todas las respuestas correctamente.` });
+        setResult({ ok: true, message: `🗑️ Se borraron TODAS las respuestas correctamente.` });
         onDataChanged?.();
       } else {
         setResult({ ok: false, message: `Error al borrar: ${res.error}` });

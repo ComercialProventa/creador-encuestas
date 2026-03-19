@@ -296,10 +296,12 @@ export default function AnalyticsDashboard({ surveyId }: DashboardProps) {
         )}
       </main>
 
-      {/* ── Mock Data Panel ─────────────────────────────── */}
-      <div className="mx-auto max-w-[90rem] px-4 pb-16 sm:px-6 lg:px-8">
-        <MockDataPanel surveyId={surveyId} onDataChanged={reload} />
-      </div>
+      {/* ── Mock Data Panel (Solo visible en Desarrollo) ─────────────────────────────── */}
+      {process.env.NODE_ENV !== 'production' && (
+        <div className="mx-auto max-w-[90rem] px-4 pb-16 sm:px-6 lg:px-8">
+          <MockDataPanel surveyId={surveyId} onDataChanged={reload} />
+        </div>
+      )}
     </div>
   );
 }

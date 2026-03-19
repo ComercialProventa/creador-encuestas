@@ -20,6 +20,8 @@ import {
   ExternalLink,
   ChevronRight,
   TrendingUp,
+  Search,
+  Building2,
   Code,
   Copy,
 } from 'lucide-react';
@@ -34,6 +36,7 @@ import QRCodeGenerator from '@/components/QRCodeGenerator';
 
 export default function AdminDashboard() {
   const [surveys, setSurveys] = useState<SurveyListItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [shareModal, setShareModal] = useState<SurveyListItem | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -104,23 +107,52 @@ export default function AdminDashboard() {
     );
   }
 
+  const filteredSurveys = surveys.filter((s) => {
+    const q = searchQuery.toLowerCase();
+    const titleMatch = s.title.toLowerCase().includes(q);
+    const companyMatch = s.company?.toLowerCase().includes(q);
+    return titleMatch || companyMatch;
+  });
+
   return (
     <Shell>
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">Mis Encuestas</h1>
           <p className="mt-1 text-sm font-medium text-slate-500">
-            Gestiona {surveys.length}{' '}
-            {surveys.length === 1 ? 'encuesta activa' : 'encuestas activas'}
+            Gestiona {filteredSurveys.length}{' '}
+            {filteredSurveys.length === 1 ? 'encuesta activa' : 'encuestas activas'}
+            {searchQuery && ' filtradas'}
           </p>
         </div>
-        <Link
-          href="/survey-builder"
-          className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-200/50 transition-all active:scale-95 hover:shadow-xl hover:brightness-110"
-        >
-          <Plus size={18} className="transition-transform group-hover:rotate-90" />
-          Crear Nueva Encuesta
-        </Link>
+        <div className="flex w-full flex-col sm:w-auto sm:flex-row sm:items-center gap-3">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input 
+              type="text" 
+              placeholder="Buscar por Empresa o Título..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-2xl border border-slate-200 py-3 pl-11 pr-4 text-sm font-medium outline-none transition-all placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          <Link
+            href="/survey-builder"
+            className="group inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-200/50 transition-all active:scale-95 hover:shadow-xl hover:brightness-110"
+          >
+            <Plus size={18} className="transition-transform group-hover:rotate-90" />
+            <span className="hidden sm:inline">Nueva Encuesta</span>
+            <span className="sm:hidden">Crear</span>
+          </Link>
+        </div>
       </div>
 
       {/* Empty */}
@@ -142,7 +174,7 @@ export default function AdminDashboard() {
 
       {/* Survey Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {surveys.map((s) => (
+        {filteredSurveys.map((s) => (
           <div
             key={s.id}
             className="group relative flex flex-col rounded-3xl overflow-hidden bg-white shadow-sm ring-1 ring-slate-200/50 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-indigo-100/50 hover:ring-indigo-100"
@@ -169,9 +201,15 @@ export default function AdminDashboard() {
 
               {/* Badges / Stats */}
               <div className="mt-auto pt-6 flex flex-wrap items-center gap-2 text-xs font-semibold">
+                {s.company && (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 text-blue-700 ring-1 ring-blue-100">
+                    <Building2 size={14} className="text-blue-500" />
+                    <span className="max-w-[140px] truncate">{s.company}</span>
+                  </span>
+                )}
                 <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-indigo-700">
                   <TrendingUp size={14} className="text-indigo-500" />
-                  {s.response_count} {s.response_count === 1 ? 'respuesta' : 'respuestas'}
+                  {s.response_count} {s.response_count === 1 ? 'resp' : 'resps'}
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-slate-600">
                   <Calendar size={14} className="text-slate-400" />
