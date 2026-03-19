@@ -1,0 +1,47 @@
+[
+  {
+    "title": "Califique qué tan fácil y rápido fue el proceso de compra de su pasaje",
+    "type": "linear_scale",
+    "scale_max": 10
+  },
+  {
+    "title": "Califique la puntualidad del servicio, tanto en el horario de salida como en el de llegada",
+    "type": "linear_scale",
+    "scale_max": 10
+  },
+  {
+    "title": "Califique el nivel de comodidad de los asientos y el espacio interior durante las horas de trayecto",
+    "type": "linear_scale",
+    "scale_max": 10
+  },
+  {
+    "title": "Califique el estado de limpieza del bus en general y de los servicios higiénicos (baños)",
+    "type": "linear_scale",
+    "scale_max": 10
+  },
+  {
+    "title": "Califique la amabilidad, presentación y disposición del personal (conductor y auxiliar) durante el viaje",
+    "type": "linear_scale",
+    "scale_max": 10
+  },
+  {
+    "title": "Considerando la conducción y el estado de la ruta, califique qué tan seguro se sintió durante el traslado",
+    "type": "linear_scale",
+    "scale_max": 10
+  },
+  {
+    "title": "Considerando el costo de su pasaje y el servicio recibido, califique la relación precio-calidad",
+    "type": "linear_scale",
+    "scale_max": 7
+  },
+  {
+    "title": "En términos generales, ¿cómo califica su experiencia total de viaje el día de hoy?",
+    "type": "linear_scale",
+    "scale_max": 7
+  },
+  {
+    "title": "¿Recomendaría nuestros servicios a un amigo, familiar o colega que necesite viajar entre Punta Arenas y Puerto Natales?",
+    "type": "nps",
+    "scale_max": 7
+  }
+]

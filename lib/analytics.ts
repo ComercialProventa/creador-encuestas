@@ -8,6 +8,7 @@ interface DbQuestion {
   type: string;
   is_required: boolean;
   options: string[] | null;
+  scale_max: number | null;
   order_index: number;
 }
 
@@ -37,6 +38,7 @@ export interface ProcessedQuestion {
   title: string;
   type: string;
   options: string[] | null;
+  scaleMax: number | null;
   answers: string[]; // raw answer values for this question
 }
 
@@ -118,6 +120,7 @@ export async function fetchSurveyAnalytics(
       title: q.title,
       type: q.type,
       options: q.options,
+      scaleMax: q.scale_max ?? null,
       answers: answersByQuestion.get(q.id) ?? [],
     }));
 

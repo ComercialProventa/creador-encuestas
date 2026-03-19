@@ -87,8 +87,47 @@ export default function AnalyticsDashboard({ surveyId }: DashboardProps) {
     );
   }
 
-  const { survey, totalResponses, npsScore, questions } = data;
+  const { survey, totalResponses, questions } = data;
   const isEmpty = totalResponses === 0;
+
+  // Calculate Global NPS
+  const globalNps = (() => {
+    const npsQuestions = questions.filter((q) => q.type === 'nps');
+    if (npsQuestions.length === 0) return null;
+
+    let promoters = 0;
+    let passives = 0;
+    let detractors = 0;
+    let totalNps = 0;
+
+    for (const q of npsQuestions) {
+      const scaleMax = q.scaleMax === 7 ? 7 : 10;
+      for (const a of q.answers) {
+        const score = Number(a);
+        if (isNaN(score)) continue;
+        totalNps++;
+        if (scaleMax === 10) {
+          if (score >= 9) promoters++;
+          else if (score >= 7) passives++;
+          else detractors++;
+        } else {
+          // Scale 1 to 7
+          if (score === 7) promoters++;
+          else if (score >= 5) passives++;
+          else detractors++;
+        }
+      }
+    }
+
+    if (totalNps === 0) return null;
+
+    const pPercent = Math.round((promoters / totalNps) * 100);
+    const passPercent = Math.round((passives / totalNps) * 100);
+    const dPercent = Math.round((detractors / totalNps) * 100);
+    const score = pPercent - dPercent;
+
+    return { score, promoters: pPercent, passives: passPercent, detractors: dPercent, total: totalNps };
+  })();
 
   // ── Render ──────────────────────────────────────────────
   return (
@@ -123,7 +162,7 @@ export default function AnalyticsDashboard({ surveyId }: DashboardProps) {
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* ── KPIs ─────────────────────────────────────── */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <KpiCard
             icon={<Users size={20} />}
             label="Total Respuestas"
@@ -136,6 +175,38 @@ export default function AnalyticsDashboard({ surveyId }: DashboardProps) {
             value={String(questions.length)}
             color="violet"
           />
+
+          {globalNps && (
+            <div className="flex flex-col justify-center gap-3 rounded-2xl bg-white p-5 shadow-sm sm:col-span-2 lg:col-span-1 border border-slate-100">
+              <div className="flex items-center gap-4">
+                <div
+                  className={`flex h-12 w-12 items-center justify-center rounded-xl font-black text-xl 
+                  ${globalNps.score > 0 ? 'bg-emerald-50 text-emerald-600' : globalNps.score < 0 ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}
+                >
+                  {globalNps.score > 0 ? '+' : ''}
+                  {globalNps.score}
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-slate-500">NPS Global</h3>
+                  <p className="text-xs font-medium text-slate-400 mt-0.5">{globalNps.total} respuestas NPS</p>
+                </div>
+              </div>
+
+              {/* Progress Bars */}
+              <div className="w-full">
+                <div className="mb-2 flex justify-between text-[10px] font-bold uppercase tracking-wider">
+                  <span className="text-red-500">{globalNps.detractors}% Detractores</span>
+                  <span className="text-amber-500">{globalNps.passives}% Pasivos</span>
+                  <span className="text-emerald-500">{globalNps.promoters}% Promotores</span>
+                </div>
+                <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div style={{ width: `${globalNps.detractors}%` }} className="bg-red-500 transition-all duration-1000" />
+                  <div style={{ width: `${globalNps.passives}%` }} className="bg-amber-400 transition-all duration-1000" />
+                  <div style={{ width: `${globalNps.promoters}%` }} className="bg-emerald-500 transition-all duration-1000" />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Empty state ──────────────────────────────── */}
@@ -255,8 +326,12 @@ function QuestionCard({ question }: { question: ProcessedQuestion }) {
       return <RatingStarsChart question={question} />;
     case 'nps':
       return <NpsChart question={question} />;
+    case 'linear_scale':
+      return <LinearScaleChart question={question} />;
     case 'likert':
       return <LikertChart question={question} />;
+    case 'csat':
+      return <CsatChart question={question} />;
     case 'single_choice':
     case 'multiple_choice':
       return <ChoiceChart question={question} />;
@@ -329,13 +404,11 @@ function RatingStarsChart({ question }: { question: ProcessedQuestion }) {
 
   return (
     <Card title={question.title} count={question.answers.length}>
-      {/* Average */}
       <div className="mb-4 flex items-center gap-2">
         <Star size={28} className="fill-amber-400 text-amber-400" />
         <span className="text-3xl font-bold text-slate-800">{avg}</span>
         <span className="text-sm text-slate-400">/ 5 promedio</span>
       </div>
-      {/* Bar chart */}
       <ResponsiveContainer width="100%" height={180}>
         <BarChart data={chartData} layout="vertical">
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -354,29 +427,66 @@ function RatingStarsChart({ question }: { question: ProcessedQuestion }) {
 // ═══════════════════════════════════════════════════════════
 function NpsChart({ question }: { question: ProcessedQuestion }) {
   const scores = question.answers.map(Number).filter((n) => !isNaN(n));
+  const scaleMax = question.scaleMax === 7 ? 7 : 10;
   
-  // Initialize counts for 0 through 10
-  const counts = Array(11).fill(0);
+  const counts = Array(scaleMax + 1).fill(0);
+  let promoters = 0;
+  let passives = 0;
+  let detractors = 0;
+  let total = 0;
+
   for (const score of scores) {
-    if (score >= 0 && score <= 10) {
+    if (score >= 0 && score <= scaleMax) {
       counts[score]++;
+      total++;
+      if (scaleMax === 10) {
+        if (score >= 9) promoters++;
+        else if (score >= 7) passives++;
+        else detractors++;
+      } else {
+        if (score === 7) promoters++;
+        else if (score >= 5) passives++;
+        else detractors++;
+      }
     }
   }
 
   const chartData = counts.map((count, i) => {
-    let color = NPS_COLORS.detractors; // 0-6
-    if (i >= 7 && i <= 8) color = NPS_COLORS.passives;
-    if (i >= 9) color = NPS_COLORS.promoters;
+    let color = NPS_COLORS.detractors; 
+    if (scaleMax === 10) {
+      if (i >= 7 && i <= 8) color = NPS_COLORS.passives;
+      if (i >= 9) color = NPS_COLORS.promoters;
+    } else {
+      if (i === 0) return null; // 0 is not valid in 1-7 scale
+      if (i >= 5 && i <= 6) color = NPS_COLORS.passives;
+      if (i === 7) color = NPS_COLORS.promoters;
+    }
 
     return {
-      name: `${i} Puntos`,
+      name: `${i}`,
       votos: count,
       fill: color
     };
-  });
+  }).filter((x) => x !== null);
+
+  const pPercent = total > 0 ? Math.round((promoters / total) * 100) : 0;
+  const dPercent = total > 0 ? Math.round((detractors / total) * 100) : 0;
+  const npsScore = pPercent - dPercent;
 
   return (
     <Card title={question.title} count={question.answers.length}>
+      <div className="mb-4 flex items-center gap-3">
+        <div
+          className={`flex h-12 w-12 items-center justify-center rounded-xl font-black text-xl 
+          ${npsScore > 0 ? 'bg-emerald-50 text-emerald-600' : npsScore < 0 ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}
+        >
+          {npsScore > 0 ? '+' : ''}{npsScore}
+        </div>
+        <div className="flex flex-col">
+          <span className="text-xl font-bold text-slate-800">Score de la Pregunta</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Net Promoter Score</span>
+        </div>
+      </div>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -395,6 +505,67 @@ function NpsChart({ question }: { question: ProcessedQuestion }) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// Linear Scale Chart
+// ═══════════════════════════════════════════════════════════
+function LinearScaleChart({ question }: { question: ProcessedQuestion }) {
+  const scaleMax = question.scaleMax === 7 ? 7 : 10;
+  const normalizeTo10 = (x: number) => ((x - 1) * 10) / 6;
+
+  let sum = 0;
+  let total = 0;
+
+  for (const a of question.answers) {
+    const n = Number(a);
+    if (!isNaN(n)) {
+       const normVal = scaleMax === 7 ? normalizeTo10(n) : n;
+       sum += normVal;
+       total++;
+    }
+  }
+  
+  const avg = total > 0 ? (sum / total).toFixed(1) : '—';
+  
+  const counts = Array(scaleMax + 1).fill(0);
+  for (const a of question.answers) {
+    const n = Number(a);
+    if (n >= 0 && n <= scaleMax) {
+      counts[n]++;
+    }
+  }
+
+  const chartData = counts.map((count, i) => ({
+    name: `${i}`,
+    votos: count,
+  }));
+  
+  if (scaleMax === 7) chartData.shift(); // remove 0 index
+
+  return (
+    <Card title={question.title} count={question.answers.length}>
+      <div className="mb-4 flex items-center gap-3">
+        <TrendingUp size={28} className="text-indigo-500" />
+        <div className="flex flex-col">
+          <span className="text-3xl font-black tracking-tight text-slate-800">{avg} <span className="text-lg font-bold text-slate-400">/ 10</span></span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            {scaleMax === 7 ? 'Promedio Normalizado Base 10' : 'Promedio Base 10'}
+          </span>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={240}>
+        <BarChart data={chartData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+          <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+          <YAxis allowDecimals={false} tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+          <Tooltip cursor={{ fill: '#f8fafc' }} content={<CustomTooltip total={question.answers.length} />} />
+          <Bar dataKey="votos" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </Card>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════
 // Likert Chart
 // ═══════════════════════════════════════════════════════════
 function LikertChart({ question }: { question: ProcessedQuestion }) {
@@ -407,14 +578,19 @@ function LikertChart({ question }: { question: ProcessedQuestion }) {
   };
 
   const counts = [0, 0, 0, 0, 0]; // 1 to 5
+  let sum = 0;
+  let total = 0;
   
   for (const a of question.answers) {
     const n = Number(a);
     if (n >= 1 && n <= 5) {
       counts[n - 1]++;
+      sum += n;
+      total++;
     }
   }
 
+  const avg = total > 0 ? (sum / total).toFixed(1) : '—';
   const chartData = counts.map((count, i) => ({
     name: LIKERT_LABELS[i + 1],
     votos: count,
@@ -422,6 +598,13 @@ function LikertChart({ question }: { question: ProcessedQuestion }) {
 
   return (
     <Card title={question.title} count={question.answers.length}>
+      <div className="mb-4 flex items-center gap-3">
+        <TrendingUp size={28} className="text-violet-500" />
+        <div className="flex flex-col">
+          <span className="text-3xl font-black tracking-tight text-slate-800">{avg} <span className="text-lg font-bold text-slate-400">/ 5</span></span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Promedio Nivel de Acuerdo</span>
+        </div>
+      </div>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
@@ -515,6 +698,66 @@ function TextOpenList({ question }: { question: ProcessedQuestion }) {
           Mostrando las últimas 10 de {question.answers.length} respuestas
         </p>
       )}
+    </Card>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// CSAT Chart (Caritas)
+// ═══════════════════════════════════════════════════════════
+function CsatChart({ question }: { question: ProcessedQuestion }) {
+  const CSAT_LABELS: Record<number, { emoji: string; label: string }> = {
+    1: { emoji: '😡', label: '1 - Muy mal' },
+    2: { emoji: '🙁', label: '2 - Mal' },
+    3: { emoji: '😐', label: '3 - Neutral' },
+    4: { emoji: '🙂', label: '4 - Bien' },
+    5: { emoji: '😍', label: '5 - Excelente' },
+  };
+
+  const counts = [0, 0, 0, 0, 0];
+  let sum = 0;
+  let total = 0;
+  for (const a of question.answers) {
+    const n = Number(a);
+    if (n >= 1 && n <= 5) {
+      counts[n - 1]++;
+      sum += n;
+      total++;
+    }
+  }
+
+  const chartData = counts.map((count, i) => ({
+    name: CSAT_LABELS[i + 1].label,
+    votos: count,
+  }));
+
+  let maxIdx = 0;
+  for (let i = 1; i < 5; i++) {
+    if (counts[i] > counts[maxIdx]) maxIdx = i;
+  }
+  const topEmoji = total > 0 ? CSAT_LABELS[maxIdx + 1].emoji : '—';
+  const topLabel = total > 0 ? CSAT_LABELS[maxIdx + 1]?.label.split(' - ')[1] : 'Sin respuestas';
+
+  return (
+    <Card title={question.title} count={question.answers.length}>
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-50 text-3xl shadow-sm">
+          <span className="drop-shadow-sm">{topEmoji}</span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-xl font-bold text-slate-800 capitalize">{topLabel}</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Sentimiento Principal</span>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={180}>
+        <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+          <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={100} />
+          <Tooltip cursor={{ fill: '#f8fafc' }} content={<CustomTooltip total={question.answers.length} />} />
+          <Bar dataKey="votos" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
     </Card>
   );
 }

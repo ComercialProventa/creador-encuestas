@@ -89,14 +89,18 @@ export default async function SurveyPage({
     title: data.title,
     description: data.description,
     questions: data.questions.map(
-      (q): Question => ({
-        id: q.id,
-        title: q.title,
-        type: q.type as Question['type'],
-        isRequired: q.is_required,
-        options: q.options ?? undefined,
-        scaleMax: (q as any).scaleMax || 10,
-      })
+      (q): Question => {
+        const finalScaleMax = (q as any).scaleMax || 10;
+        console.log(`[DEBUG PUBLIC FORM] Question: "${q.title}" | raw scaleMax from fetch: ${(q as any).scaleMax} | mapped finalScaleMax: ${finalScaleMax}`);
+        return {
+          id: q.id,
+          title: q.title,
+          type: q.type as Question['type'],
+          isRequired: q.is_required,
+          options: q.options ?? undefined,
+          scaleMax: finalScaleMax,
+        };
+      }
     ),
     rewardType: (data.reward_type as Survey['rewardType']) ?? 'none',
     rewardText: data.reward_text ?? undefined,
@@ -106,6 +110,8 @@ export default async function SurveyPage({
     logoUrl: data.logo_url ?? undefined,
     coverImageUrl: data.cover_image_url ?? undefined,
   };
+
+  console.log('[DEBUG PUBLIC FORM] Final Survey questions array passed to SurveyForm:', survey.questions.map(q => ({ title: q.title.substring(0, 15), scaleMax: q.scaleMax })));
 
   return <SurveyForm survey={survey} surveyId={surveyId} />;
 }

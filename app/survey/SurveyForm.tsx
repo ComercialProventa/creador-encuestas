@@ -363,14 +363,15 @@ export default function SurveyForm({ survey, surveyId }: SurveyFormProps) {
                   primaryColor={primaryColor}
                 />
               )}
-              {/* ── Linear Scale (0-10) ────────────────────── */}
+              {/* ── Linear Scale (0-10 o 1-7) ────────────────────── */}
               {q.type === 'linear_scale' && (
                 <NpsButtons
                   value={(answers[q.id] as number) ?? -1}
                   onChange={(v) => setAnswer(q.id, v)}
                   primaryColor={primaryColor}
                   tintBg={tintBg}
-                  isGenericScale={true} // Nueva prop para quitar los textos de NPS
+                  isGenericScale={true}
+                  scaleMax={q.scaleMax || 10}
                 />
               )}
 
