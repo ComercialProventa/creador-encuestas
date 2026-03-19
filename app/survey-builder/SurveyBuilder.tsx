@@ -27,6 +27,32 @@ const REWARD_LABELS: Record<RewardType, string> = {
   giveaway: 'Sorteo / Regalo',
 };
 
+const normalizeQuestionType = (t: string): Question['type'] => {
+  if (!t) return 'text_open';
+  const raw = t.toLowerCase().trim();
+  const mapper: Record<string, Question['type']> = {
+    'stars': 'rating_stars',
+    'star_rating': 'rating_stars',
+    'rating': 'rating_stars',
+    'rating_stars': 'rating_stars',
+    'nps': 'nps',
+    'single': 'single_choice',
+    'single_choice': 'single_choice',
+    'multiple': 'multiple_choice',
+    'multiple_choice': 'multiple_choice',
+    'options': 'single_choice',
+    'text': 'text_open',
+    'open_text': 'text_open',
+    'text_open': 'text_open',
+    'open': 'text_open',
+    'likert': 'likert',
+    'linear': 'linear_scale',
+    'linear_scale': 'linear_scale',
+    'csat': 'csat'
+  };
+  return mapper[raw] || 'text_open';
+};
+
 export default function SurveyBuilder() {
   const [surveyTitle, setSurveyTitle] = useState('');
   const [surveyDescription, setSurveyDescription] = useState('');
@@ -164,7 +190,7 @@ export default function SurveyBuilder() {
       const generated: Question[] = data.questions.map((q: Record<string, unknown>) => ({
         id: crypto.randomUUID(),
         title: (q.title as string) || '',
-        type: (q.type as Question['type']) || 'text_open',
+        type: normalizeQuestionType(q.type as string),
         options: Array.isArray(q.options) ? (q.options as string[]) : undefined,
         isRequired: Boolean(q.isRequired),
       }));
@@ -195,7 +221,7 @@ export default function SurveyBuilder() {
             parsed.questions.map((q: any) => ({
               id: crypto.randomUUID(), // Ignoramos el id del JSON para evitar errores de tipo UUID en BD
               title: q.title || '',
-              type: q.type || 'text_open',
+              type: normalizeQuestionType(q.type),
               isRequired: q.isRequired || q.is_required || false,
               options: Array.isArray(q.options) ? q.options : undefined,
               scaleMax: q.scaleMax || q.scale_max || 10,
