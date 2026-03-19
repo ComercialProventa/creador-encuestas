@@ -1,4 +1,6 @@
-import { supabase } from '@/lib/supabase';
+'use server';
+
+import { createClient } from '@/lib/supabase/server';
 
 // ── Raw DB types ──────────────────────────────────────────
 interface DbQuestion {
@@ -61,6 +63,9 @@ export async function fetchSurveyAnalytics(
   surveyId: string
 ): Promise<{ data: SurveyAnalytics | null; error: string | null }> {
   try {
+    // Use the SSR client so the admin auth session is included → bypasses RLS for authenticated users
+    const supabase = await createClient();
+
     // 1. Survey
     const { data: survey, error: surveyErr } = await supabase
       .from('surveys')
@@ -93,17 +98,32 @@ export async function fetchSurveyAnalytics(
     if (rErr) return { data: null, error: rErr.message };
 
     // 4. All answers for this survey's questions
+    // We paginate in chunks of 1000 to bypass PostgREST's default row limit.
     const questionIds = qs.map((q) => q.id);
     let allAnswers: DbAnswer[] = [];
 
     if (questionIds.length > 0) {
-      const { data: ans, error: aErr } = await supabase
-        .from('answers')
-        .select('*')
-        .in('question_id', questionIds);
+      const PAGE = 1000;
+      let from = 0;
+      let keepFetching = true;
 
-      if (aErr) return { data: null, error: aErr.message };
-      allAnswers = (ans ?? []) as DbAnswer[];
+      while (keepFetching) {
+        const { data: ans, error: aErr } = await supabase
+          .from('answers')
+          .select('*')
+          .in('question_id', questionIds)
+          .range(from, from + PAGE - 1);
+
+        if (aErr) return { data: null, error: aErr.message };
+        const chunk = (ans ?? []) as DbAnswer[];
+        allAnswers = allAnswers.concat(chunk);
+
+        if (chunk.length < PAGE) {
+          keepFetching = false; // No more pages
+        } else {
+          from += PAGE;
+        }
+      }
     }
 
     // 5. Group answers by question
@@ -124,16 +144,26 @@ export async function fetchSurveyAnalytics(
       answers: answersByQuestion.get(q.id) ?? [],
     }));
 
-    // 7. Compute NPS
+    // 7. Compute NPS (legacy field kept for backwards compat)
     const npsQuestion = processedQuestions.find((q) => q.type === 'nps');
     let npsScore: number | null = null;
 
     if (npsQuestion && npsQuestion.answers.length > 0) {
+      const scaleMax = npsQuestion.scaleMax === 7 ? 7 : 10;
       const scores = npsQuestion.answers.map(Number).filter((n) => !isNaN(n));
       const total = scores.length;
       if (total > 0) {
-        const promoters = scores.filter((n) => n >= 9).length;
-        const detractors = scores.filter((n) => n <= 6).length;
+        let promoters = 0;
+        let detractors = 0;
+        for (const n of scores) {
+          if (scaleMax === 10) {
+            if (n >= 9) promoters++;
+            else if (n <= 6) detractors++;
+          } else {
+            if (n === 7) promoters++;
+            else if (n <= 4) detractors++;
+          }
+        }
         npsScore = Math.round(((promoters - detractors) / total) * 100);
       }
     }
