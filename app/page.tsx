@@ -270,16 +270,19 @@ export default function Home() {
 
             <div className="space-y-6 text-sm text-slate-600">
               <p className="text-base font-medium leading-relaxed text-slate-500">
-                Puedes crear o migrar encuestas desde otros sistemas pegando un JSON. El formato debe contener al menos un <strong className="text-slate-800">title</strong> y un arreglo de <strong className="text-slate-800">questions</strong>.
+                Puedes migrar encuestas desde otros sistemas pegando un JSON. El formato debe contener al menos un <strong className="text-slate-800">title</strong> y un arreglo de <strong className="text-slate-800">questions</strong>.
               </p>
 
               <div className="grid gap-6 sm:grid-cols-2">
                 <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-100">
-                  <h3 className="mb-3 font-bold text-slate-800">Campos soportados (Raíz):</h3>
+                  <h3 className="mb-3 font-bold text-slate-800">Campos de la Encuesta:</h3>
                   <ul className="space-y-2 font-medium">
                     <li><code className="text-indigo-600">title</code> <span className="text-xs text-slate-400">(String, Req)</span></li>
                     <li><code className="text-indigo-600">description</code> <span className="text-xs text-slate-400">(String, Opc)</span></li>
                     <li><code className="text-indigo-600">primary_color</code> <span className="text-xs text-slate-400">("#hex", Opc)</span></li>
+                    <li><code className="text-indigo-600">logo_url / cover_image_url</code> <span className="text-xs text-slate-400">(String, Opc)</span></li>
+                    <li><code className="text-indigo-600">reward_type</code> <span className="text-xs text-slate-400">(none, discount_code, gift_card)</span></li>
+                    <li><code className="text-indigo-600">require_contact</code> <span className="text-xs text-slate-400">(Boolean, pedir datos al final)</span></li>
                     <li><code className="text-indigo-600">questions</code> <span className="text-xs text-slate-400">(Array, Req)</span></li>
                   </ul>
                 </div>
@@ -288,9 +291,10 @@ export default function Home() {
                   <h3 className="mb-3 font-bold text-slate-800">Atributos de Pregunta:</h3>
                   <ul className="space-y-2 font-medium">
                     <li><code className="text-emerald-600">title</code> <span className="text-xs text-slate-400">(String, Req)</span></li>
-                    <li><code className="text-emerald-600">type</code> <span className="text-xs text-slate-400">(nps, likert, etc)</span></li>
+                    <li><code className="text-emerald-600">type</code> <span className="text-xs text-slate-400 text-[10px] block leading-tight mt-1">(text, single_choice, multiple_choice, nps, linear_scale, likert)</span></li>
                     <li><code className="text-emerald-600">isRequired</code> <span className="text-xs text-slate-400">(Boolean)</span></li>
                     <li><code className="text-emerald-600">options</code> <span className="text-xs text-slate-400">(Array of strings)</span></li>
+                    <li><code className="text-emerald-600">scaleMax</code> <span className="text-xs text-slate-400">(7 o 10. Solo para nps/linear)</span></li>
                   </ul>
                 </div>
               </div>
@@ -299,20 +303,29 @@ export default function Home() {
                 <h3 className="mb-4 font-bold text-white">Ejemplo Completo:</h3>
                 <pre className="font-mono text-xs leading-relaxed text-emerald-300 overflow-x-auto scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600">
                   {`{
-  "title": "Evaluación de Clima Laboral",
+  "title": "Evaluación de Servicio VIP",
   "description": "Tu opinión es anónima y nos ayuda a mejorar.",
   "primary_color": "#10b981",
+  "reward_type": "discount_code",
+  "require_contact": true,
   "questions": [
     {
-      "title": "¿En qué departamento trabajas?",
+      "title": "¿Qué servicio utilizaste?",
       "type": "single_choice",
-      "options": ["Ventas", "Operaciones", "RRHH"],
+      "options": ["Ventas", "Soporte Técnico"],
       "isRequired": true
     },
     {
-      "title": "Del 0 al 10, ¿lo recomendarías?",
-      "type": "nps",
+      "title": "Del 1 al 7, ¿qué tan satisfecho estás?",
+      "type": "linear_scale",
+      "scaleMax": 7,
       "isRequired": true
+    },
+    {
+      "title": "Evalúa estos aspectos:",
+      "type": "likert",
+      "options": ["Rapidez", "Amabilidad"],
+      "isRequired": false
     }
   ]
 }`}
