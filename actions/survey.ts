@@ -148,9 +148,16 @@ export async function saveSurvey(
 // ═══════════════════════════════════════════════════════════
 export async function submitSurveyResponse(
   surveyId: string,
-  answersMap: Record<string, string | number | string[]>
+  answersMap: Record<string, string | number | string[]>,
+  honeypot?: string
 ): Promise<SubmitResult> {
   try {
+    // Seguridad: Si el campo invisible de bot está lleno, ignoramos silenciosamente
+    if (honeypot) {
+      console.warn("Bot detectado (Honeypot lleno)");
+      return { success: true, responseId: 'bot-filtered' };
+    }
+
     const supabase = await createClient();
     // ── Insert response ─────────────────────────────────
     const { data: response, error: responseError } = await supabase
@@ -219,32 +226,24 @@ export async function fetchAllSurveys(): Promise<{
 }> {
   try {
     const supabase = await createClient();
+    // Optimizamos: Pedimos las encuestas y el conteo de respuestas en UNA sola consulta (Join/Aggregate)
     const { data: surveys, error } = await supabase
       .from('surveys')
-      .select('*')
+      .select('*, responses(count)')
       .order('created_at', { ascending: false });
 
     if (error) return { data: [], error: error.message };
 
-    const items: SurveyListItem[] = [];
-
-    for (const s of surveys ?? []) {
-      const { count } = await supabase
-        .from('responses')
-        .select('*', { count: 'exact', head: true })
-        .eq('survey_id', s.id);
-
-      items.push({
-        id: s.id,
-        title: s.title,
-        description: s.description ?? '',
-        company: s.company ?? null,
-        created_at: s.created_at,
-        response_count: count ?? 0,
-        primary_color: s.primary_color ?? '#6366f1',
-        logo_url: s.logo_url ?? null,
-      });
-    }
+    const items: SurveyListItem[] = (surveys ?? []).map((s: any) => ({
+      id: s.id,
+      title: s.title,
+      description: s.description ?? '',
+      company: s.company ?? null,
+      created_at: s.created_at,
+      response_count: s.responses[0]?.count ?? 0,
+      primary_color: s.primary_color ?? '#6366f1',
+      logo_url: s.logo_url ?? null,
+    }));
 
     return { data: items, error: null };
   } catch (err) {

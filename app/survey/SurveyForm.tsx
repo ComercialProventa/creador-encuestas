@@ -30,12 +30,16 @@ export default function SurveyForm({ survey, surveyId }: SurveyFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [honeypot, setHoneypot] = useState(''); // Campo trampa para bots
 
   // Reward state
   const [responseId, setResponseId] = useState<string | null>(null);
   const [contactInfo, setContactInfo] = useState('');
   const [isClaiming, setIsClaiming] = useState(false);
   const [isClaimed, setIsClaimed] = useState(false);
+
+  // Prevención de envíos múltiples (cooldown local)
+  const [lastSubmitTime, setLastSubmitTime] = useState(0);
 
   const hasReward =
     survey.rewardType && survey.rewardType !== 'none' && survey.rewardText;
@@ -60,6 +64,11 @@ export default function SurveyForm({ survey, surveyId }: SurveyFormProps) {
 
   // ── Validation & Submit ───────────────────────────────
   const handleSubmit = async () => {
+    // 1. Evitar clics dobles rápidos (3 segundos de cooldown)
+    const now = Date.now();
+    if (now - lastSubmitTime < 3000) return;
+    setLastSubmitTime(now);
+
     const newErrors: Record<string, boolean> = {};
     let hasError = false;
 
@@ -90,7 +99,7 @@ export default function SurveyForm({ survey, surveyId }: SurveyFormProps) {
     setSubmitError(null);
 
     if (surveyId) {
-      const result = await submitSurveyResponse(surveyId, answers);
+      const result = await submitSurveyResponse(surveyId, answers, honeypot);
       setIsSubmitting(false);
       if (result.success) {
         setResponseId(result.responseId);
@@ -99,7 +108,9 @@ export default function SurveyForm({ survey, surveyId }: SurveyFormProps) {
         setSubmitError(result.error);
       }
     } else {
+      // Demo mode
       console.log('📊 Respuestas (demo):', JSON.stringify(answers, null, 2));
+      if (honeypot) console.warn("Bot detectado en demo");
       await new Promise((r) => setTimeout(r, 1000));
       setIsSubmitting(false);
       setIsSubmitted(true);
@@ -400,6 +411,16 @@ export default function SurveyForm({ survey, surveyId }: SurveyFormProps) {
       {/* Sticky Submit Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/90 px-4 py-3 backdrop-blur-md">
         <div className="mx-auto max-w-md">
+          {/* Honeypot: Campo invisible para humanos, trampa para bots */}
+          <input
+            type="text"
+            name="not_a_bot_field"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+            style={{ display: 'none' }}
+            tabIndex={-1}
+            autoComplete="off"
+          />
           {submitError && (
             <p className="mb-2 text-center text-xs font-medium text-red-500">{submitError}</p>
           )}
