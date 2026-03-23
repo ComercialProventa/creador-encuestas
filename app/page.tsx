@@ -22,7 +22,7 @@ export default function Home() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setIsAdmin(true);
     });
-    
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setIsAdmin(!!session);
     });
@@ -249,7 +249,7 @@ export default function Home() {
           </div>
 
           <p className="mt-20 text-sm font-bold text-slate-400">
-            Powered by Gemini AI • Plataforma de Encuestas SaaS
+            Sistema de encuestas desarrollado por ProVenta Spa
           </p>
         </div>
       </div>
