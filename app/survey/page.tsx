@@ -109,6 +109,7 @@ export default async function SurveyPage({
     primaryColor: data.primary_color ?? '#6366f1',
     logoUrl: data.logo_url ?? undefined,
     coverImageUrl: data.cover_image_url ?? undefined,
+    couponImageUrl: data.coupon_image_url ?? undefined,
   };
 
   console.log('[DEBUG PUBLIC FORM] Final Survey questions array passed to SurveyForm:', survey.questions.map(q => ({ title: q.title.substring(0, 15), scaleMax: q.scaleMax })));

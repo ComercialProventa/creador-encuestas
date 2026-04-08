@@ -20,6 +20,8 @@ import { Question, type RewardType } from './types';
 import { saveSurvey, fetchSurveyById } from '@/actions/survey';
 import EditorPanel from './EditorPanel';
 import LivePreview from './LivePreview';
+import { createClient } from '@supabase/supabase-js';
+import { UploadCloud } from 'lucide-react'; // Añade este ícono
 
 const REWARD_LABELS: Record<RewardType, string> = {
   none: 'Ninguno',
@@ -54,6 +56,7 @@ const normalizeQuestionType = (t: string): Question['type'] => {
 };
 
 export default function SurveyBuilder() {
+  const [couponImageUrl, setCouponImageUrl] = useState('');
   const [surveyTitle, setSurveyTitle] = useState('');
   const [surveyDescription, setSurveyDescription] = useState('');
   const [company, setCompany] = useState('');
@@ -61,6 +64,7 @@ export default function SurveyBuilder() {
   const [primaryColor, setPrimaryColor] = useState('#6366f1');
   const [logoUrl, setLogoUrl] = useState('');
   const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [isUploadingCoupon, setIsUploadingCoupon] = useState(false);
 
   // Reward state
   const [rewardType, setRewardType] = useState<RewardType>('none');
@@ -98,6 +102,7 @@ export default function SurveyBuilder() {
         setRewardText(data.reward_text || '');
         setRewardImageUrl(data.reward_image_url || '');
         setRequireContact(data.require_contact);
+        setCouponImageUrl(data.coupon_image_url || '');
         setQuestions(
           data.questions.map((q) => ({
             id: q.id,
@@ -110,9 +115,52 @@ export default function SurveyBuilder() {
         );
       }
       setIsLoadingSurvey(false);
+
     }
     loadSurvey();
   }, [surveyIdParam]);
+
+  // ── Función para subir imagen a Supabase Storage ──
+  const handleUploadCoupon = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingCoupon(true);
+
+    try {
+      // 1. Inicializa tu cliente de Supabase (Usa tus variables de entorno)
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
+      // 2. Generar un nombre único para evitar sobreescribir archivos
+      const fileExt = file.name.split('.').pop();
+      const fileName = `cupon-${Date.now()}.${fileExt}`;
+      const filePath = `descuentos/${fileName}`; // Carpeta dentro del bucket
+
+      // 3. Subir el archivo al bucket "coupons"
+      const { error: uploadError } = await supabase.storage
+        .from('coupons') // <-- Asegúrate de que este nombre coincida con el bucket que creaste
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // 4. Obtener la URL pública de la imagen
+      const { data } = supabase.storage
+        .from('coupons')
+        .getPublicUrl(filePath);
+
+      // 5. Guardar esa URL en el estado de tu componente
+      setCouponImageUrl(data.publicUrl);
+
+    } catch (error) {
+      console.error("Error subiendo el cupón:", error);
+      alert("Hubo un error al subir la imagen. Verifica tu conexión o el tamaño del archivo.");
+    } finally {
+      setIsUploadingCoupon(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!surveyTitle.trim()) return;
@@ -130,19 +178,20 @@ export default function SurveyBuilder() {
     }));
     console.log("ENVIANDO AL SERVIDOR:", preguntasAEnviar);
 
-      const result = await saveSurvey(
-        {
-          id: surveyIdParam || undefined,
-          title: surveyTitle,
-          description: surveyDescription,
-          company: company.trim() || undefined,
-          primaryColor,
+    const result = await saveSurvey(
+      {
+        id: surveyIdParam || undefined,
+        title: surveyTitle,
+        description: surveyDescription,
+        company: company.trim() || undefined,
+        primaryColor,
         logoUrl: logoUrl || undefined,
         coverImageUrl: coverImageUrl || undefined,
         rewardType,
         rewardText: rewardText || undefined,
         rewardImageUrl: rewardImageUrl || undefined,
         requireContact,
+        couponImageUrl: couponImageUrl || undefined,
       },
       questions.map((q) => ({
         id: q.id,
@@ -354,7 +403,7 @@ export default function SurveyBuilder() {
               <Building2 size={18} className="text-blue-600" />
               <h2 className="text-sm font-bold text-slate-800">Configuración Comercial</h2>
             </div>
-            
+
             <div>
               <label className="mb-1.5 block text-xs font-medium text-slate-600">Nombre de la Empresa Comercial / Cliente</label>
               <input
@@ -510,7 +559,69 @@ export default function SurveyBuilder() {
                     />
                   </div>
                 </div>
+                {/* ── NUEVO: Subida al Bucket (Solo para Descuentos) ── */}
+                {rewardType === 'discount' && (
+                  <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                    <label className="mb-1.5 block text-xs font-bold text-emerald-800">
+                      Imagen del Cupón a Descargar (Para el cliente)
+                    </label>
+                    <p className="mb-3 text-[11px] text-emerald-600">
+                      Sube la imagen con el diseño del descuento. El cliente la verá al finalizar.
+                    </p>
 
+                    {couponImageUrl ? (
+                      // Vista previa de la imagen subida
+                      <div className="relative overflow-hidden rounded-lg border border-emerald-200">
+                        <img src={couponImageUrl} alt="Cupón subido" className="h-32 w-full object-contain bg-white" />
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (couponImageUrl.includes('coupons')) {
+                              try {
+                                const supabase = createClient(
+                                  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                                  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                                );
+                                const urlParts = couponImageUrl.split('/');
+                                const filePath = urlParts.slice(-2).join('/');
+                                await supabase.storage.from('coupons').remove([filePath]);
+                              } catch (err) {
+                                console.error('Error eliminando imagen del bucket:', err);
+                              }
+                            }
+                            setCouponImageUrl('');
+                          }}
+                          className="absolute top-2 right-2 rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white shadow"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    ) : (
+                      // Botón de subida de archivo
+                      <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-emerald-300 bg-emerald-50/50 py-6 transition-colors hover:bg-emerald-100">
+                        {isUploadingCoupon ? (
+                          <>
+                            <Loader2 size={24} className="mb-2 animate-spin text-emerald-600" />
+                            <span className="text-sm font-medium text-emerald-700">Subiendo imagen...</span>
+                          </>
+                        ) : (
+                          <>
+                            <UploadCloud size={24} className="mb-2 text-emerald-500" />
+                            <span className="text-sm font-medium text-emerald-700">Haz clic para subir tu imagen</span>
+                            <span className="text-xs text-emerald-500">JPG, PNG o WEBP</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleUploadCoupon}
+                          disabled={isUploadingCoupon}
+                        />
+                      </label>
+                    )}
+                  </div>
+                )}
                 {/* Require contact toggle */}
                 <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
                   <div>
@@ -547,6 +658,10 @@ export default function SurveyBuilder() {
             primaryColor={primaryColor}
             logoUrl={logoUrl}
             coverImageUrl={coverImageUrl}
+            rewardType={rewardType}
+            rewardText={rewardText}
+            rewardImageUrl={rewardImageUrl}
+            requireContact={requireContact}
           />
         </aside>
       </main>

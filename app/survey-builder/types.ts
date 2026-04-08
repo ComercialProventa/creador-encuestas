@@ -28,6 +28,7 @@ export interface Survey {
   rewardText?: string;
   rewardImageUrl?: string;
   requireContact?: boolean;
+  couponImageUrl?: string;
 }
 
 export type RewardType = 'none' | 'discount' | 'giveaway';

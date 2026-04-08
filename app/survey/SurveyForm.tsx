@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import confetti from 'canvas-confetti';
 import {
   Star,
   Send,
@@ -9,7 +10,7 @@ import {
   Gift,
   PartyPopper,
   ArrowLeft,
-  CheckCircle2,
+  CheckCircle2, Download
 } from 'lucide-react';
 import type { Survey } from '@/app/survey-builder/types';
 import { submitSurveyResponse, claimReward } from '@/actions/survey';
@@ -55,6 +56,48 @@ export default function SurveyForm({ survey, surveyId }: SurveyFormProps) {
   const progressPercent = survey.questions.length > 0
     ? Math.round((answeredCount / survey.questions.length) * 100)
     : 0;
+
+  // ── Efecto de Celebración (Confeti) ──────────────────────
+  useEffect(() => {
+    // Solo disparamos el confeti si se envió la encuesta y hay un premio configurado
+    if (isSubmitted && hasReward && !isClaimed) {
+      const duration = 3000; // 3 segundos de fiesta
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 100 };
+
+      const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+      const interval: any = setInterval(function () {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) {
+          return clearInterval(interval);
+        }
+
+        const particleCount = 50 * (timeLeft / duration);
+        // Colores: Tu color principal + tonos del diseño del premio
+        const colors = [primaryColor, '#f59e0b', '#f97316'];
+
+        // Dispara desde la izquierda
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+          colors: colors
+        });
+        // Dispara desde la derecha
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+          colors: colors
+        });
+      }, 250);
+
+      return () => clearInterval(interval); // Limpieza por si el usuario cierra rápido
+    }
+  }, [isSubmitted, hasReward, isClaimed, primaryColor]);
+
 
   // ── Updater ───────────────────────────────────────────
   const setAnswer = useCallback((questionId: string, value: AnswerValue) => {
@@ -119,12 +162,42 @@ export default function SurveyForm({ survey, surveyId }: SurveyFormProps) {
 
   // ── Claim reward handler ──────────────────────────────
   const handleClaim = async () => {
-    if (!contactInfo.trim() || !responseId) return;
+    console.log('handleClaim llamado - responseId:', responseId, 'contactInfo:', contactInfo);
+    if (!contactInfo.trim() || !responseId) {
+      console.log('handleClaim: validación falló');
+      return;
+    }
     setIsClaiming(true);
     const result = await claimReward(responseId, contactInfo.trim());
+    console.log('handleClaim resultado:', result);
     setIsClaiming(false);
     if (result.success) {
       setIsClaimed(true);
+    } else {
+      console.error('Error al reclamar premio:', result.error);
+      alert('Error al reclamar premio: ' + result.error);
+    }
+  };
+
+  // ── Función segura para descargar en móviles ─────────────
+  const handleDownloadCoupon = async (url: string) => {
+    try {
+      // Intentamos descargar el archivo directamente
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = 'tu-cupon-descuento.jpg'; // Nombre del archivo
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      // Plan B (Móviles): Si hay error de seguridad (CORS), abrimos la imagen
+      // para que el usuario mantenga presionado y la guarde.
+      window.open(url, '_blank');
     }
   };
 
@@ -206,22 +279,58 @@ export default function SurveyForm({ survey, surveyId }: SurveyFormProps) {
     );
   }
 
-  // ── Final Thank You (no reward, or after claiming) ────
+  // ── Final Thank You (Con Cupón Descargable Móvil) ────
   if (isSubmitted && (!hasReward || isClaimed)) {
+    // Verificamos si es un descuento y si hay URL del cupón
+    const hasCoupon = survey.rewardType === 'discount' && survey.couponImageUrl;
+
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-indigo-50 to-white px-6">
-        <div className="flex flex-col items-center text-center">
-          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 shadow-lg shadow-emerald-100">
-            <CheckCircle2 size={40} className="text-emerald-600" />
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-indigo-50 to-white px-5 py-10">
+        <div className="flex w-full max-w-sm flex-col items-center text-center">
+
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 shadow-lg shadow-emerald-100">
+            <CheckCircle2 size={32} className="text-emerald-600" />
           </div>
+
           <h1 className="mb-2 text-2xl font-bold text-slate-800">
-            {isClaimed ? '¡Listo, premio reclamado!' : '¡Gracias por tu opinión!'}
+            {isClaimed ? '¡Premio desbloqueado!' : '¡Gracias por tu opinión!'}
           </h1>
-          <p className="max-w-xs text-sm leading-relaxed text-slate-500">
-            {isClaimed
-              ? 'Te contactaremos pronto. ¡Gracias por participar!'
-              : 'Tu respuesta nos ayuda a mejorar. Apreciamos mucho tu tiempo.'}
-          </p>
+
+          {hasCoupon ? (
+            // ── VISTA DE CUPÓN (Pensada para móvil) ──
+            <div className="mt-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <p className="mb-3 text-sm font-medium text-slate-600">
+                Aquí tienes tu cupón. ¡Guárdalo en tu teléfono!
+              </p>
+
+              {/* Imagen del cupón (Proporción vertical o cuadrada ideal para móvil) */}
+              <div className="overflow-hidden rounded-2xl border-4 border-white bg-white shadow-xl">
+                <img
+                  src={survey.couponImageUrl}
+                  alt="Tu Cupón"
+                  className="w-full object-contain"
+                  style={{ maxHeight: '60vh' }} // Evita que empuje el botón fuera de la pantalla
+                />
+              </div>
+
+              {/* Botón táctil gigante */}
+              <button
+                onClick={() => handleDownloadCoupon(survey.couponImageUrl!)}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-4 text-base font-bold text-white shadow-lg transition-transform active:scale-[0.98]"
+              >
+                <Download size={20} />
+                Guardar en mi galería
+              </button>
+            </div>
+          ) : (
+            // ── VISTA NORMAL (Sin cupón) ──
+            <p className="max-w-xs text-sm leading-relaxed text-slate-500 mt-2">
+              {isClaimed
+                ? 'Te contactaremos pronto con los detalles de tu premio. ¡Gracias por participar!'
+                : 'Tu respuesta nos ayuda a mejorar. Apreciamos mucho tu tiempo.'}
+            </p>
+          )}
+
         </div>
       </div>
     );
@@ -512,8 +621,8 @@ function NpsButtons({
               onClick={() => onChange(n)}
               // Clases de botón dinámicas: Ancho fluido para 7, tamaño fijo para 10
               className={`flex items-center justify-center rounded-xl border-2 text-sm font-bold transition-all active:scale-90 ${scaleMax === 7
-                  ? 'w-full h-10 sm:h-12 sm:text-base'
-                  : 'h-10 w-10 sm:h-11 sm:w-11 sm:text-base'
+                ? 'w-full h-10 sm:h-12 sm:text-base'
+                : 'h-10 w-10 sm:h-11 sm:w-11 sm:text-base'
                 }`}
               style={
                 isSelected

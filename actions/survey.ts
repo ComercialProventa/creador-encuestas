@@ -24,6 +24,7 @@ interface SurveyInput {
   rewardText?: string;
   rewardImageUrl?: string;
   requireContact?: boolean;
+  couponImageUrl?: string;
 }
 
 type ActionResult =
@@ -60,6 +61,7 @@ export async function saveSurvey(
           reward_text: surveyData.rewardText || null,
           reward_image_url: surveyData.rewardImageUrl || null,
           require_contact: surveyData.requireContact ?? false,
+          coupon_image_url: surveyData.couponImageUrl || null, // <-- AÑADIDO AQUÍ
         })
         .eq('id', surveyId);
 
@@ -97,6 +99,7 @@ export async function saveSurvey(
           reward_text: surveyData.rewardText || null,
           reward_image_url: surveyData.rewardImageUrl || null,
           require_contact: surveyData.requireContact ?? false,
+          coupon_image_url: surveyData.couponImageUrl || null, // <-- AÑADIDO AQUÍ
         })
         .select('id')
         .single();
@@ -292,6 +295,7 @@ export interface SurveyWithQuestions {
   reward_text: string | null;
   reward_image_url: string | null;
   require_contact: boolean;
+  coupon_image_url?: string | null;
   questions: {
     id: string;
     title: string;
@@ -339,6 +343,7 @@ export async function fetchSurveyById(
         reward_text: survey.reward_text ?? null,
         reward_image_url: survey.reward_image_url ?? null,
         require_contact: survey.require_contact ?? false,
+        coupon_image_url: survey.coupon_image_url ?? null, // <-- AÑADIDO AQUÍ
         questions: (questions ?? []).map((q: Record<string, unknown>) => ({
           id: q.id as string,
           title: q.title as string,
